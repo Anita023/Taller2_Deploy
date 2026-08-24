@@ -1,0 +1,42 @@
+{% extends "tienda/base.html" %}
+
+{% block contenido %}
+<h1>Crear pedido</h1>
+
+<form method="post">
+    {% csrf_token %}
+
+    <label>Nombre del cliente</label>
+    <input
+        type="text"
+        name="cliente_nombre"
+        required
+    >
+
+    <label>Correo electrónico</label>
+    <input
+        type="email"
+        name="cliente_email"
+        required
+    >
+
+    <label>Producto</label>
+    <select name="producto_id" required>
+        {% for producto in productos %}
+            <option value="{{ producto.id }}">
+                {{ producto.nombre }} - ${{ producto.precio }}
+            </option>
+        {% endfor %}
+    </select>
+
+    <label>Cantidad</label>
+    <input
+        type="number"
+        name="cantidad"
+        min="1"
+        required
+    >
+
+    <button type="submit">Crear pedido</button>
+</form>
+{% endblock %}
