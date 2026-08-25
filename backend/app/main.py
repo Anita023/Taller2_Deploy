@@ -1,48 +1,38 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-from app.database import client
-from app.routers import pedidos, productos
+from app.database import conectar, cerrar_conexion
+from app.routers import productos, pedidos
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    try:
-        await client.admin.command("ping")
-        print("Conexión a MongoDB Atlas exitosa.")
-    except Exception as error:
-        print(f"Error de conexión con MongoDB: {error}")
-        raise
-
+    conectar()
     yield
-
-    await client.close()
-    print("Conexión cerrada.")
+    cerrar_conexion()
 
 
 app = FastAPI(
     title="TechGear API",
-    description="API para administrar productos y pedidos",
+    description="API para el catálogo de productos y la gestión de pedidos de TechGear.",
     version="1.0.0",
     lifespan=lifespan,
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(productos.router)
 app.include_router(pedidos.router)
 
 
-@app.get("/", tags=["Inicio"])
-async def inicio():
-    return {
-        "mensaje": "TechGear API funcionando",
-        "documentacion": "/docs",
-    }
-
-
-@app.get("/health", tags=["Inicio"])
-async def health_check():
-    return {
-        "estado": "activo",
-    }
+@app.get("/")
+def raiz():
+    return {"mensaje": "Bienvenido a la API de TechGear"}
