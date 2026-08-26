@@ -1,124 +1,118 @@
 from datetime import datetime, timezone
-from typing import List
 
-from bson import ObjectId
 from fastapi import APIRouter, HTTPException, status
+from bson import ObjectId
+from bson.errors import InvalidId
 
-from app.database import pedidos_collection
-from app.database import productos_collection
+from app.database import productos_collection, pedidos_collection
 from app.schemas import PedidoCrear, PedidoRespuesta
 
-router = APIRouter(
-    prefix="/pedidos",
-    tags=["Pedidos"]
-)
+router = APIRouter(prefix="/pedidos", tags=["Pedidos"])
+
+ESTADOS_VALIDOS = {"pendiente", "confirmado", "enviado", "entregado", "cancelado"}
 
 
-def convertir_pedido(documento: dict) -> dict:
+def pedido_helper(pedido) -> dict:
     return {
-        "id": str(documento["_id"]),
-        "cliente_nombre": documento["cliente_nombre"],
-        "cliente_email": documento["cliente_email"],
-        "productos": documento["productos"],
-        "total": documento["total"],
-        "estado": documento["estado"],
-        "fecha": documento["fecha"],
+        "id": str(pedido["_id"]),
+        "cliente_nombre": pedido["cliente_nombre"],
+        "cliente_email": pedido["cliente_email"],
+        "productos": pedido["productos"],
+        "total": pedido["total"],
+        "estado": pedido["estado"],
+        "fecha": pedido["fecha"],
     }
 
 
-@router.post(
-    "/",
-    response_model=PedidoRespuesta,
-    status_code=status.HTTP_201_CREATED
-)
-async def crear_pedido(pedido: PedidoCrear):
-    total = 0
-    productos_pedido = []
+def obtener_object_id(pedido_id: str) -> ObjectId:
+    try:
+        return ObjectId(pedido_id)
+    except InvalidId:
+        raise HTTPException(status_code=400, detail="ID de pedido no válido.")
 
-    for detalle in pedido.productos:
-        if not ObjectId.is_valid(detalle.producto_id):
+
+@router.post("/", response_model=PedidoRespuesta, status_code=status.HTTP_201_CREATED)
+def crear_pedido(pedido: PedidoCrear):
+    total = 0.0
+    detalle_productos = []
+
+    for item in pedido.productos:
+        try:
+            oid_producto = ObjectId(item.producto_id)
+        except InvalidId:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"ID inválido: {detalle.producto_id}"
+                status_code=400,
+                detail=f"ID de producto no válido: {item.producto_id}",
             )
 
-        producto = await productos_collection.find_one(
-            {"_id": ObjectId(detalle.producto_id)}
-        )
+        producto = productos_collection.find_one({"_id": oid_producto})
 
         if not producto:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Producto no encontrado: {detalle.producto_id}"
+                status_code=404,
+                detail=f"Producto no encontrado: {item.producto_id}",
             )
 
-        if producto["stock"] < detalle.cantidad:
+        if producto["stock"] < item.cantidad:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Stock insuficiente para {producto['nombre']}"
+                status_code=400,
+                detail=(
+                    f"Stock insuficiente para '{producto['nombre']}'. "
+                    f"Disponible: {producto['stock']}, solicitado: {item.cantidad}."
+                ),
             )
 
-        total += producto["precio"] * detalle.cantidad
-
-        productos_pedido.append({
-            "producto_id": detalle.producto_id,
-            "cantidad": detalle.cantidad
-        })
-
-    fecha_actual = datetime.now(timezone.utc)
+        total += producto["precio"] * item.cantidad
+        detalle_productos.append(
+            {"producto_id": item.producto_id, "cantidad": item.cantidad}
+        )
 
     nuevo_pedido = {
         "cliente_nombre": pedido.cliente_nombre,
         "cliente_email": pedido.cliente_email,
-        "productos": productos_pedido,
-        "total": round(total, 2),
+        "productos": detalle_productos,
+        "total": total,
         "estado": "pendiente",
-        "fecha": fecha_actual,
+        "fecha": datetime.now(timezone.utc),
     }
 
-    resultado = await pedidos_collection.insert_one(nuevo_pedido)
+    resultado = pedidos_collection.insert_one(nuevo_pedido)
 
-    for detalle in pedido.productos:
-        await productos_collection.update_one(
-            {"_id": ObjectId(detalle.producto_id)},
-            {"$inc": {"stock": -detalle.cantidad}}
+    for item in pedido.productos:
+        productos_collection.update_one(
+            {"_id": ObjectId(item.producto_id)},
+            {"$inc": {"stock": -item.cantidad}},
         )
 
-    pedido_guardado = await pedidos_collection.find_one(
-        {"_id": resultado.inserted_id}
-    )
-
-    return convertir_pedido(pedido_guardado)
+    creado = pedidos_collection.find_one({"_id": resultado.inserted_id})
+    return pedido_helper(creado)
 
 
-@router.get("/", response_model=List[PedidoRespuesta])
-async def listar_pedidos():
-    pedidos = []
-
-    cursor = pedidos_collection.find().sort("fecha", -1)
-
-    async for pedido in cursor:
-        pedidos.append(convertir_pedido(pedido))
-
-    return pedidos
+@router.get("/", response_model=list[PedidoRespuesta])
+def listar_pedidos():
+    pedidos = pedidos_collection.find()
+    return [pedido_helper(p) for p in pedidos]
 
 
 @router.get("/{pedido_id}", response_model=PedidoRespuesta)
-async def obtener_pedido(pedido_id: str):
-    if not ObjectId.is_valid(pedido_id):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El ID del pedido no es válido"
-        )
-
-    pedido = await pedidos_collection.find_one(
-        {"_id": ObjectId(pedido_id)}
-    )
+def obtener_pedido(pedido_id: str):
+    oid = obtener_object_id(pedido_id)
+    pedido = pedidos_collection.find_one({"_id": oid})
 
     if not pedido:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado.")
+
+    return pedido_helper(pedido)
+
+
+@router.patch("/{pedido_id}/estado", response_model=PedidoRespuesta)
+def actualizar_estado_pedido(pedido_id: str, estado: str):
+    oid = obtener_object_id(pedido_id)
+
+    if estado not in ESTADOS_VALIDOS:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Pedido no encontrado"
+            status_code=400,
+            detail=f"Estado no válido. Usa uno de: {', '.join(ESTADOS_VALIDOS)}.",
         )
 
     return convertir_pedido(pedido)

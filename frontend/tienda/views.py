@@ -13,7 +13,7 @@ def listar_productos(request):
         respuesta.raise_for_status()
         productos = respuesta.json()
 
-    except requests.exceptions.RequestException:
+    except requests.exceptions.RequestException as error:
         productos = []
         messages.error(
             request,

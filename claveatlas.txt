@@ -1,4 +1,0 @@
-usuario : deossasernaanamaria30_db_user
-Contraseña: sSxEcGXEFCYd3JRE
-
-MONGODB_URL = mongodb+srv://deossasernaanamaria30_db_user:sSxEcGXEFCYd3JRE@cluster0.119mjtl.mongodb.net/?appName=Cluster0           

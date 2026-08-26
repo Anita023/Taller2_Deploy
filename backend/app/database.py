@@ -1,41 +1,31 @@
 import os
-from pathlib import Path
 
-from dotenv import load_dotenv
-from pymongo import AsyncMongoClient
+from pymongo import MongoClient
 from pymongo.server_api import ServerApi
+from dotenv import load_dotenv
 
-
-# Ruta de la carpeta backend
-BASE_DIR = Path(__file__).resolve().parent.parent
-
-# Cargar backend/.env
-load_dotenv(BASE_DIR / ".env")
-
+load_dotenv()
 
 MONGODB_URL = os.getenv("MONGODB_URL")
-DATABASE_NAME = os.getenv("DATABASE_NAME", "ambiente502")
-
 
 if not MONGODB_URL:
     raise RuntimeError(
-        "No se encontró MONGODB_URL en el archivo backend/.env"
+        "No se encontró la variable de entorno MONGODB_URL. "
+        "Verifica que el archivo .env exista en la carpeta backend/ "
+        "y contenga MONGODB_URL=<tu_cadena_de_conexión_de_Atlas>."
     )
 
+client = MongoClient(MONGODB_URL, server_api=ServerApi("1"))
 
-# Cliente asíncrono de MongoDB
-client = AsyncMongoClient(
-    MONGODB_URL,
-    server_api=ServerApi(
-        version="1",
-        strict=True,
-        deprecation_errors=True
-    )
-)
+db = client["techgear"]
+
+productos_collection = db["productos"]
+pedidos_collection = db["pedidos"]
 
 
-# Base de datos
-database = client[DATABASE_NAME]
+def conectar():
+    client.admin.command("ping")
+    print("Conexión a MongoDB Atlas exitosa.")
 
 
 # Colecciones de TechGear
