@@ -26,3 +26,8 @@ pedidos_collection = db["pedidos"]
 def conectar():
     client.admin.command("ping")
     print("Conexión a MongoDB Atlas exitosa.")
+
+
+def cerrar_conexion():
+    client.close()
+    print("Conexión a MongoDB Atlas cerrada.")
