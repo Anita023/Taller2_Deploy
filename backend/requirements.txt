@@ -4,6 +4,4 @@ pymongo
 pydantic
 pydantic-settings
 python-dotenv
-django
-requests
 motor
