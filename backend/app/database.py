@@ -26,8 +26,3 @@ pedidos_collection = db["pedidos"]
 def conectar():
     client.admin.command("ping")
     print("Conexión a MongoDB Atlas exitosa.")
-
-
-# Colecciones de TechGear
-productos_collection = database["productos"]
-pedidos_collection = database["pedidos"]
