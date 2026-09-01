@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial de Pedidos - TechGear</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 30px;
+            background-color: #f3f4f6;
+        }
+
+        nav.topnav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: white;
+            padding: 14px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 25px;
+        }
+
+        .topnav-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .brand {
+            font-weight: bold;
+            color: #111827;
+        }
+
+        nav.topnav a {
+            color: #2563eb;
+            text-decoration: none;
+        }
+
+        .btn-pedidos {
+            background-color: #f59e0b;
+            color: white !important;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+
+        .mensaje {
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+        }
+
+        h1 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 10px 12px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        th {
+            color: #374151;
+            font-size: 14px;
+            text-transform: none;
+        }
+
+        .estado {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .estado-entregado, .estado-confirmado, .estado-completado {
+            background-color: #16a34a;
+        }
+
+        .estado-pendiente {
+            background-color: #f59e0b;
+        }
+
+        .estado-enviado {
+            background-color: #2563eb;
+        }
+
+        .estado-cancelado {
+            background-color: #dc2626;
+        }
+
+        .btn-detalle {
+            background-color: white;
+            border: 1px solid #d1d5db;
+            color: #111827;
+            padding: 6px 12px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="topnav">
+        <div class="topnav-left">
+            <span class="brand">⚡ TechGear - Catálogo</span>
+            <a href="{% url 'productos' %}">Catálogo</a>
+            <a href="/admin/">Panel Admin</a>
+            <a href="{{ fastapi_url }}/docs" target="_blank" rel="noopener">Api Swagger</a>
+        </div>
+        <a class="btn-pedidos" href="{% url 'historial_pedidos' %}">Ver Pedidos</a>
+    </nav>
+
+    {% for message in messages %}
+        <div class="mensaje">{{ message }}</div>
+    {% endfor %}
+
+    <div class="panel">
+        <h1>📄 Historial de Pedidos Realizados</h1>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>ID Pedido</th>
+                    <th>Producto</th>
+                    <th>Cantidad</th>
+                    <th>Total Pagado</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pedido in pedidos %}
+                    <tr>
+                        <td>{{ pedido.id }}</td>
+                        <td>{{ pedido.producto }}</td>
+                        <td>{{ pedido.cantidad }}</td>
+                        <td>${{ pedido.total }} COP</td>
+                        <td>
+                            <span class="estado estado-{{ pedido.estado }}">
+                                {{ pedido.estado|capfirst }}
+                            </span>
+                        </td>
+                        <td>
+                            <a class="btn-detalle" href="{% url 'detalle_pedido' pedido.id %}">
+                                🔍 Ver Detalle
+                            </a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6">No hay pedidos registrados todavía.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

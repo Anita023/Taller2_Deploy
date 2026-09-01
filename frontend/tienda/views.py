@@ -23,7 +23,7 @@ def listar_productos(request):
     return render(
         request,
         "tienda/productos.html",
-        {"productos": productos}
+        {"productos": productos, "fastapi_url": settings.FASTAPI_URL}
     )
 
 
@@ -41,7 +41,11 @@ def crear_pedido(request):
             request,
             "No se pudo cargar la lista de productos. Verifique que la API esté encendida."
         )
-        return render(request, "tienda/pedido.html", {"productos": []})
+        return render(
+            request,
+            "tienda/pedido.html",
+            {"productos": [], "fastapi_url": settings.FASTAPI_URL}
+        )
 
     if request.method == "POST":
         cliente_nombre = request.POST.get("cliente_nombre", "").strip()
@@ -104,5 +108,86 @@ def crear_pedido(request):
     return render(
         request,
         "tienda/pedido.html",
-        {"productos": productos}
+        {"productos": productos, "fastapi_url": settings.FASTAPI_URL}
+    )
+
+
+def historial_pedidos(request):
+    productos_por_id = {}
+
+    try:
+        respuesta_productos = requests.get(
+            f"{settings.FASTAPI_URL}/productos/",
+            timeout=5
+        )
+        respuesta_productos.raise_for_status()
+        productos_por_id = {
+            producto["id"]: producto["nombre"]
+            for producto in respuesta_productos.json()
+        }
+    except requests.exceptions.RequestException:
+        pass
+
+    try:
+        respuesta_pedidos = requests.get(
+            f"{settings.FASTAPI_URL}/pedidos/",
+            timeout=5
+        )
+        respuesta_pedidos.raise_for_status()
+        pedidos_api = respuesta_pedidos.json()
+
+    except requests.exceptions.RequestException:
+        pedidos_api = []
+        messages.error(
+            request,
+            "No se pudo conectar con el servicio de pedidos (API fuera de línea)."
+        )
+
+    pedidos = []
+    for pedido in pedidos_api:
+        items = pedido.get("productos", [])
+        nombres = [
+            productos_por_id.get(item["producto_id"], item["producto_id"])
+            for item in items
+        ]
+        pedidos.append({
+            "id": pedido.get("id"),
+            "producto": ", ".join(nombres) if nombres else "-",
+            "cantidad": sum(item.get("cantidad", 0) for item in items),
+            "total": pedido.get("total", 0),
+            "estado": pedido.get("estado", "pendiente"),
+            "fecha": pedido.get("fecha"),
+        })
+
+    return render(
+        request,
+        "tienda/pedidos.html",
+        {
+            "pedidos": pedidos,
+            "fastapi_url": settings.FASTAPI_URL,
+        }
+    )
+
+
+def detalle_pedido(request, pedido_id):
+    pedido = None
+
+    try:
+        respuesta = requests.get(
+            f"{settings.FASTAPI_URL}/pedidos/{pedido_id}",
+            timeout=5
+        )
+        respuesta.raise_for_status()
+        pedido = respuesta.json()
+
+    except requests.exceptions.RequestException:
+        messages.error(
+            request,
+            "No se pudo obtener el detalle del pedido (API fuera de línea)."
+        )
+
+    return render(
+        request,
+        "tienda/detalle_pedido.html",
+        {"pedido": pedido, "fastapi_url": settings.FASTAPI_URL}
     )

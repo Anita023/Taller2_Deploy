@@ -14,14 +14,39 @@
             background-color: #f3f4f6;
         }
 
-        nav {
+        nav.topnav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: white;
+            padding: 14px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
             margin-bottom: 25px;
         }
 
-        nav a {
+        .topnav-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .brand {
+            font-weight: bold;
+            color: #111827;
+        }
+
+        nav.topnav a {
             color: #2563eb;
             text-decoration: none;
-            margin-right: 20px;
+        }
+
+        .btn-pedidos {
+            background-color: #f59e0b;
+            color: white !important;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: bold;
         }
 
         .formulario {
@@ -75,9 +100,15 @@
     </style>
 </head>
 <body>
-    <nav>
-        <a href="{% url 'productos' %}">Ver catálogo</a>
-        <a href="{% url 'crear_pedido' %}">Crear pedido</a>
+    <nav class="topnav">
+        <div class="topnav-left">
+            <span class="brand">⚡ TechGear - Catálogo</span>
+            <a href="{% url 'productos' %}">Catálogo</a>
+            <a href="{% url 'crear_pedido' %}">Crear pedido</a>
+            <a href="/admin/">Panel Admin</a>
+            <a href="{{ fastapi_url }}/docs" target="_blank" rel="noopener">Api Swagger</a>
+        </div>
+        <a class="btn-pedidos" href="{% url 'historial_pedidos' %}">Ver Pedidos</a>
     </nav>
 
     <h1>Crear pedido</h1>
